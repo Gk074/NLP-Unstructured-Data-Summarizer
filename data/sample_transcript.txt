@@ -1,0 +1,8 @@
+00:00:04 Alice: Quick sync on demand shortfall for Model-X in EU.
+00:00:12 Bob: Supplier S1 is late by 2 weeks, we might expedite from S2.
+00:00:20 Alice: Let's decide on expedited shipment if cost is under $50k.
+00:00:33 Charlie: I can pull cost options and share by Friday.
+00:01:02 Bob: Decision: We'll expedite 20% volume from S2 for week 10.
+00:01:20 Alice: Any blockers on DC capacity?
+00:01:25 Charlie: DC2 is tight; risk if inbound arrives same day.
+00:01:40 Alice: Action item: Bob to confirm DC2 capacity by tomorrow.
