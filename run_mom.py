@@ -1,16 +1,19 @@
 from __future__ import annotations
-import json
 from typing import List
 
 from src.utils import read_text_file
-from src.ingest import parse_transcript, merge_consecutive_same_speaker, Turn
+from src.ingest import parse_transcript, merge_consecutive_same_speaker
 from src.segment import build_segments
-from src.extract import (
-    extract_decisions, extract_actions, extract_risks, extract_questions, pick_key_turns
-)
-from src.summarize import extractive_summary_bullets
+from src.facts import build_facts, salience_score_facts, top_facts
+from src.theme import cluster_facts_into_themes
+
+from src.llm_provider import groq_chat_json
+from src.prompts import SYSTEM_JSON_ONLY, section_extraction_prompt
+from src.verify import verify_decisions_actions
+
 from src.schema import MoM, TopicSection, Evidence
 from src.render import mom_to_markdown
+
 
 def build_mom(transcript_path: str, meeting_title: str = "MoM") -> MoM:
     lines = read_text_file(transcript_path)
@@ -28,37 +31,82 @@ def build_mom(transcript_path: str, meeting_title: str = "MoM") -> MoM:
 
     for seg in segments:
         s, e = seg.start, seg.end
-        dec = extract_decisions(turns, s, e)
-        act = extract_actions(turns, s, e)
-        risks = extract_risks(turns, s, e)
-        qs = extract_questions(turns, s, e)
 
-        key_turns = pick_key_turns(turns, s, e, k=6)
-        bullets = extractive_summary_bullets(turns, key_turns, max_bullets=5)
+        # Phase-2 anchors: facts + salience + themes
+        facts = build_facts(turns, s, e)
+        facts = salience_score_facts(facts)
+        picked = top_facts(facts, k=12)
+        themes = cluster_facts_into_themes(picked)
 
-        ev = Evidence(start_turn=s, end_turn=e, snippet=" ".join([turns[i].text for i in range(s, min(e+1, s+2))])[:220])
-
-        section = TopicSection(
-            title=seg.title_hint,
-            summary_bullets=bullets,
-            decisions=dec,
-            action_items=act,
-            risks=risks,
-            open_questions=qs,
-            evidence=ev
+        # Segment-level evidence object (always present)
+        ev = Evidence(
+            start_turn=s,
+            end_turn=e,
+            snippet=" ".join([turns[i].text for i in range(s, min(e + 1, s + 2))])[:220],
         )
+
+        # Build window and anchors for the LLM prompt
+        window_text = "\n".join([f"{turns[i].speaker}: {turns[i].text}" for i in range(s, e + 1)])
+        top_facts_text = "\n".join(
+            [f"- ({f.kind}, {f.score:.2f}) {f.speaker}: {f.text} [turn {f.turn_idx}]"
+             for f in picked[:12]]
+        )
+
+        # Title hint + theme hint
+        segment_title = seg.title_hint
+        if themes:
+            segment_title = f"{seg.title_hint} | {themes[0].title}"
+
+        prompt = section_extraction_prompt(
+            segment_title=segment_title,
+            seg_start=s,
+            seg_end=e,
+            window_text=window_text,
+            top_facts=top_facts_text,
+        )
+
+        # ---- Groq JSON extraction ----
+        raw = groq_chat_json(
+            system=SYSTEM_JSON_ONLY,
+            user=prompt,
+            temperature=0.2,
+            max_tokens=1200,
+        )
+
+        # Pydantic validation into TopicSection
+        # (We inject "evidence" for the whole section separately)
+        section = TopicSection.model_validate({
+            "title": raw.get("title", segment_title),
+            "summary_bullets": raw.get("summary_bullets", []),
+            "decisions": raw.get("decisions", []),
+            "action_items": raw.get("action_items", []),
+            "risks": raw.get("risks", []),
+            "open_questions": raw.get("open_questions", []),
+            "evidence": ev.model_dump(),
+        })
+
+        # Evidence verification gate (drops hallucinated/unsupported items)
+        section.decisions, section.action_items = verify_decisions_actions(
+            turns=turns,
+            seg_start=s,
+            seg_end=e,
+            decisions=section.decisions,
+            actions=section.action_items,
+            sim_threshold=0.55,
+        )
+
         topic_sections.append(section)
 
-        all_decisions.extend(dec)
-        all_actions.extend(act)
-        all_risks.extend(risks)
-        all_questions.extend(qs)
+        all_decisions.extend(section.decisions)
+        all_actions.extend(section.action_items)
+        all_risks.extend(section.risks)
+        all_questions.extend(section.open_questions)
 
-    # TL;DR: take top bullets from first 2 segments
+    # TL;DR: concise from first topics
     tldr_parts = []
     for sec in topic_sections[:2]:
         tldr_parts.extend(sec.summary_bullets[:2])
-    tldr = " ".join(tldr_parts) if tldr_parts else "Meeting summary generated."
+    tldr = " ".join(tldr_parts) if tldr_parts else "Meeting minutes generated."
 
     mom = MoM(
         meeting_title=meeting_title,
@@ -71,8 +119,10 @@ def build_mom(transcript_path: str, meeting_title: str = "MoM") -> MoM:
     )
     return mom
 
+
 if __name__ == "__main__":
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--transcript", type=str, required=True)
     p.add_argument("--title", type=str, default="MoM")

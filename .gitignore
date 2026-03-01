@@ -22,3 +22,5 @@ Thumbs.db
 # Output files
 mom.json
 mom.md
+
+.env
