@@ -21,6 +21,10 @@ def cluster_facts_into_themes(
     if not facts:
         return []
 
+    # ✅ If only 1 fact, no clustering needed
+    if len(facts) == 1:
+        return [Theme(theme_id=0, title=suggest_theme_title(facts), facts=facts)]
+
     model = SentenceTransformer(model_name)
     texts = [f.text for f in facts]
     emb = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)

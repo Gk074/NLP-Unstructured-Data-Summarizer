@@ -1,0 +1,9 @@
+{
+  "decisions": [
+    {"decision": "Expedite 20% volume from S2 for week 10"}
+  ],
+  "action_items": [
+    {"owner": "Charlie", "task": "Pull cost options and share", "due": "Friday"},
+    {"owner": "Bob", "task": "Confirm DC2 capacity", "due": "tomorrow"}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "decisions": [
+    {"decision": "Add weekend shift for the next 2 weeks"}
+  ],
+  "action_items": [
+    {"owner": "Bob", "task": "Send the shift staffing plan", "due": "Monday"}
+  ]
+}

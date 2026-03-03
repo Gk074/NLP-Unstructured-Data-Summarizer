@@ -10,8 +10,8 @@ from src.theme import cluster_facts_into_themes
 from src.llm_provider import groq_chat_json
 from src.prompts import SYSTEM_JSON_ONLY, section_extraction_prompt
 from src.verify import verify_decisions_actions
-
-from src.schema import MoM, TopicSection, Evidence
+from src.domain_sc import classify_topic
+from src.schema import MoM, TopicSection, Evidence, Meta
 from src.render import mom_to_markdown
 
 
@@ -94,7 +94,8 @@ def build_mom(transcript_path: str, meeting_title: str = "MoM") -> MoM:
             actions=section.action_items,
             sim_threshold=0.55,
         )
-
+        domain_label = classify_topic(" ".join(section.summary_bullets + section.risks + section.open_questions))
+        section.title = f"[{domain_label}] {section.title}"
         topic_sections.append(section)
 
         all_decisions.extend(section.decisions)
@@ -116,6 +117,7 @@ def build_mom(transcript_path: str, meeting_title: str = "MoM") -> MoM:
         action_items=all_actions,
         risks=all_risks[:10],
         open_questions=all_questions[:10],
+        meta=Meta(total_turns=len(turns))
     )
     return mom
 

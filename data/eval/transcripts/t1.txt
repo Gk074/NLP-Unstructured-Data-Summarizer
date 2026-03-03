@@ -1,0 +1,5 @@
+00:00:04 Alice: Demand for Model-X is down 8% in EU.
+00:00:10 Bob: Supplier S1 lead time slipped by 2 weeks.
+00:00:16 Alice: Decision: Expedite 20% volume from S2 for week 10.
+00:00:22 Charlie: I will pull expedite cost options and share by Friday.
+00:00:30 Alice: Action item: Bob to confirm DC2 capacity by tomorrow.

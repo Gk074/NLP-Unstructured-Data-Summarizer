@@ -1,0 +1,4 @@
+00:00:03 Alice: Forecast increased for NA by 5% for next month.
+00:00:09 Bob: Plant capacity is capped; we can add a weekend shift.
+00:00:15 Alice: Decision: Add weekend shift for the next 2 weeks.
+00:00:24 Charlie: Bob can send the shift staffing plan by Monday.

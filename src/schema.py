@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field
 
 Priority = Literal["Low", "Med", "High"]
 
+class Meta(BaseModel):
+    total_turns: int
+
 class Evidence(BaseModel):
     start_turn: int
     end_turn: int
@@ -37,3 +40,4 @@ class MoM(BaseModel):
     action_items: List[ActionItem] = Field(default_factory=list)
     risks: List[str] = Field(default_factory=list)
     open_questions: List[str] = Field(default_factory=list)
+    meta: Meta
